@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { Pencil, Play, Square, SquareTerminal, Trash2 } from "lucide-react";
+import { AlertCircle, Pencil, Play, Square, SquareTerminal, Trash2 } from "lucide-react";
 import { formatTime } from "../lib/format";
 import type { RuntimeStatus, SavedTask, TerminalAvailability, TerminalKind } from "../types";
 import { TerminalSelect } from "./TerminalSelect";
@@ -36,6 +36,14 @@ export function TaskCard({
   onRemove,
 }: TaskCardProps) {
   const running = Boolean(status?.running);
+  const hasError =
+    !running &&
+    (Boolean(status?.error) ||
+      (typeof status?.exit_code === "number" && status.exit_code !== 0));
+  const errorMessage =
+    status?.error ||
+    status?.last_error_output ||
+    (typeof status?.exit_code === "number" ? `Exit code ${status.exit_code}` : "실행 오류");
   const effectiveTerminal = selectedTerminal || defaultTerminal;
   const defaultTerminalLabel =
     terminals.find((terminal) => terminal.kind === defaultTerminal)?.label ?? "기본";
@@ -59,7 +67,14 @@ export function TaskCard({
       <div className="task-row">
         <div className="task-head">
           <div className="task-main">
-            <h3>{task.name}</h3>
+            <div className="task-title-line">
+              <h3>{task.name}</h3>
+              {hasError ? (
+                <span className="task-error-indicator" title={errorMessage}>
+                  <AlertCircle size={14} />
+                </span>
+              ) : null}
+            </div>
             <p>{task.command}</p>
           </div>
         </div>

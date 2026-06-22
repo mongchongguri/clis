@@ -1,5 +1,6 @@
 import type { LogEntry, SavedTask } from "../types";
 import { ChevronDown, ChevronUp, Terminal } from "lucide-react";
+import { useState } from "react";
 
 type LogPanelProps = {
   task?: SavedTask;
@@ -9,8 +10,45 @@ type LogPanelProps = {
 };
 
 export function LogPanel({ task, logs, open, onToggle }: LogPanelProps) {
+  const [height, setHeight] = useState(240);
+
+  const startResize = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!open) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startY = event.clientY;
+    const startHeight = height;
+
+    const resize = (moveEvent: MouseEvent) => {
+      const nextHeight = startHeight + startY - moveEvent.clientY;
+      setHeight(Math.min(520, Math.max(140, nextHeight)));
+    };
+
+    const stopResize = () => {
+      document.body.classList.remove("resizing-log-panel");
+      window.removeEventListener("mousemove", resize);
+      window.removeEventListener("mouseup", stopResize);
+    };
+
+    document.body.classList.add("resizing-log-panel");
+    window.addEventListener("mousemove", resize);
+    window.addEventListener("mouseup", stopResize);
+  };
+
   return (
-    <section className={open ? "log-panel open" : "log-panel"}>
+    <section
+      className={open ? "log-panel open" : "log-panel"}
+      style={{ "--log-panel-height": `${height}px` } as React.CSSProperties}
+    >
+      {open ? (
+        <div
+          className="log-resize-handle"
+          onMouseDown={startResize}
+          title="터미널 높이 조절"
+        />
+      ) : null}
       <div
         className="log-header"
         onClick={onToggle}

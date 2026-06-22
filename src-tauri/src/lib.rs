@@ -5,6 +5,7 @@ use std::{
     env,
     ffi::c_void,
     io::{BufRead, BufReader},
+    net::{SocketAddr, TcpStream},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{Arc, Mutex},
@@ -717,14 +718,31 @@ fn read_network_metrics(state: &State<'_, AppState>) -> Result<SystemMetrics, St
 
     *previous = Some(current);
 
+    let internet_online = current.online && has_internet_connectivity();
+
     Ok(SystemMetrics {
         cpu_percent: 0.0,
         memory_percent: 0.0,
         memory_used_bytes: 0,
         memory_total_bytes: 0,
-        network_online: current.online,
+        network_online: internet_online,
         network_rx_bytes_per_sec: rx_per_sec,
         network_tx_bytes_per_sec: tx_per_sec,
+    })
+}
+
+#[cfg(windows)]
+fn has_internet_connectivity() -> bool {
+    const INTERNET_PROBES: [([u8; 4], u16); 3] = [
+        ([1, 1, 1, 1], 443),
+        ([8, 8, 8, 8], 443),
+        ([208, 67, 222, 222], 443),
+    ];
+    const INTERNET_PROBE_TIMEOUT: Duration = Duration::from_millis(450);
+
+    INTERNET_PROBES.iter().any(|(octets, port)| {
+        let address = SocketAddr::from((*octets, *port));
+        TcpStream::connect_timeout(&address, INTERNET_PROBE_TIMEOUT).is_ok()
     })
 }
 
@@ -778,6 +796,7 @@ fn validate_and_parse(cwd: &str, command: &str) -> Result<ParsedCommand, String>
     if cwd.as_os_str().is_empty() {
         return Err("폴더를 지정해야 합니다.".to_string());
     }
+    reject_untrusted_mount_path(&cwd)?;
     if !cwd.exists() || !cwd.is_dir() {
         return Err("실행 폴더가 존재하지 않습니다.".to_string());
     }
@@ -816,6 +835,33 @@ fn validate_and_parse(cwd: &str, command: &str) -> Result<ParsedCommand, String>
         args: tokens.into_iter().skip(1).collect(),
         cwd,
     })
+}
+
+#[cfg(windows)]
+fn reject_untrusted_mount_path(cwd: &Path) -> Result<(), String> {
+    use std::os::windows::fs::MetadataExt;
+
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
+
+    for path in cwd.ancestors() {
+        let Ok(metadata) = std::fs::symlink_metadata(path) else {
+            continue;
+        };
+
+        if metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+            return Err(format!(
+                "이 폴더 경로에 Windows가 신뢰하지 않을 수 있는 탑재 지점이 포함되어 있습니다. 프로젝트를 실제 로컬 폴더로 옮긴 뒤 다시 실행해주세요. 문제 경로: {}",
+                path.display()
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn reject_untrusted_mount_path(_cwd: &Path) -> Result<(), String> {
+    Ok(())
 }
 
 fn parse_command_line(input: &str) -> Result<Vec<String>, String> {

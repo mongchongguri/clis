@@ -19,6 +19,7 @@ import {
 } from "./lib/terminalSettings";
 import { FALLBACK_THEME, loadTheme, persistTheme } from "./lib/themeSettings";
 import appIcon from "./assets/app-mark.png";
+import packageJson from "../package.json";
 import type {
   AppTheme,
   LogEntry,
@@ -33,10 +34,12 @@ import type {
 type SpeedTestState = {
   checking: boolean;
   mbps?: number;
+  medianMbps?: number;
   uploadMbps?: number;
   latencyMs?: number;
   receivedBytes?: number;
   sentBytes?: number;
+  sampleCount?: number;
   error?: string;
 };
 
@@ -218,10 +221,15 @@ export default function App() {
       return;
     }
 
-    await invoke<ValidationResult>("validate_command", {
-      cwd: form.cwd.trim(),
-      command: form.command.trim(),
-    });
+    try {
+      await invoke<ValidationResult>("validate_command", {
+        cwd: form.cwd.trim(),
+        command: form.command.trim(),
+      });
+    } catch (error) {
+      setMessage(String(error));
+      return;
+    }
 
     const task = {
       ...form,
@@ -272,7 +280,17 @@ export default function App() {
       });
       setStatuses((current) => ({ ...current, [task.id]: status }));
     } catch (error) {
-      setMessage(String(error));
+      const message = String(error);
+      setMessage(message);
+      setStatuses((current) => ({
+        ...current,
+        [task.id]: {
+          task_id: task.id,
+          running: false,
+          error: message,
+          last_error_output: message,
+        },
+      }));
     }
   };
 
@@ -329,15 +347,25 @@ export default function App() {
 
     try {
       const latencyMs = await measureLatency(controller.signal);
-      const download = await measureDownloadSpeed(controller.signal);
+      const download = await measureDownloadSpeed(controller.signal, (progress) => {
+        setSpeedTest((current) => ({
+          ...current,
+          checking: true,
+          mbps: progress.currentMbps,
+          receivedBytes: progress.bytes,
+          sampleCount: progress.sampleCount,
+        }));
+      });
       const upload = await measureUploadSpeed(controller.signal);
       setSpeedTest({
         checking: false,
         mbps: download.mbps,
+        medianMbps: download.medianMbps,
         uploadMbps: upload.mbps,
         latencyMs,
         receivedBytes: download.bytes,
         sentBytes: upload.bytes,
+        sampleCount: download.sampleCount,
       });
     } catch (error) {
       setSpeedTest({
@@ -359,7 +387,7 @@ export default function App() {
         <div className="screen-brand">
           <img className="screen-brand-icon" src={appIcon} alt="" aria-hidden="true" />
           <span>Clis</span>
-          <span className="screen-version">v0.1.0</span>
+          <span className="screen-version">v{packageJson.version}</span>
         </div>
         <div className="screen-right-tools">
           <div className="system-metrics">
@@ -373,7 +401,7 @@ export default function App() {
             </span>
             <span
               className={`metric-pill ${systemMetrics?.network_online ? "metric-net-on" : "metric-net-off"}`}
-              title="현재 네트워크 연결 상태"
+              title="실제 인터넷 연결 상태입니다. 약 2초마다 다시 확인합니다."
             >
               {systemMetrics?.network_online ? <Wifi size={13} /> : <WifiOff size={13} />}
               NET {systemMetrics?.network_online ? "ON" : "NO"}
@@ -393,7 +421,16 @@ export default function App() {
               <div className="speed-popover" id="speed-test-popover" role="tooltip">
                 <div className="speed-popover-title">인터넷 속도 측정</div>
                 {speedTest.checking ? (
-                  <div className="speed-popover-message">외부 서버와 통신하며 측정 중입니다.</div>
+                  <div className="speed-popover-grid">
+                    <span>상태</span>
+                    <strong>측정 중</strong>
+                    <span>현재 수신</span>
+                    <strong>{formatOptionalMbps(speedTest.mbps)}</strong>
+                    <span>샘플</span>
+                    <strong>{speedTest.sampleCount ?? 0}회</strong>
+                    <span>수신 데이터</span>
+                    <strong>{formatBytes(speedTest.receivedBytes)}</strong>
+                  </div>
                 ) : speedTest.error ? (
                   <div className="speed-popover-message">
                     {speedTest.error === "timeout" ? "측정 시간이 초과되었습니다." : "측정에 실패했습니다."}
@@ -406,8 +443,12 @@ export default function App() {
                     <strong>{formatLatency(speedTest.latencyMs)}</strong>
                     <span>수신 속도</span>
                     <strong>{formatMbps(speedTest.mbps)}</strong>
+                    <span>중앙값</span>
+                    <strong>{formatOptionalMbps(speedTest.medianMbps)}</strong>
                     <span>송신 속도</span>
                     <strong>{formatOptionalMbps(speedTest.uploadMbps)}</strong>
+                    <span>샘플</span>
+                    <strong>{speedTest.sampleCount ?? 0}회</strong>
                     <span>수신 데이터</span>
                     <strong>{formatBytes(speedTest.receivedBytes)}</strong>
                     <span>송신 데이터</span>
@@ -486,12 +527,13 @@ function formatPercent(value?: number) {
   return typeof value === "number" ? `${value.toFixed(0)}%` : "-";
 }
 
-const SPEED_TEST_DOWNLOAD_BYTES = 8_000_000;
+const SPEED_TEST_DOWNLOAD_BYTES = 4_000_000;
 const SPEED_TEST_UPLOAD_BYTES = 2_000_000;
-const SPEED_TEST_TIMEOUT_MS = 20_000;
+const SPEED_TEST_MIN_DURATION_MS = 7_000;
+const SPEED_TEST_TIMEOUT_MS = 14_000;
 
 function formatSpeedTest(speed: SpeedTestState) {
-  if (speed.checking) return "측정 중";
+  if (speed.checking) return typeof speed.mbps === "number" ? `${formatMbps(speed.mbps)} 측정 중` : "측정 중";
   if (speed.error === "timeout") return "시간 초과";
   if (speed.error) return "측정 실패";
   if (typeof speed.mbps === "number") return `${formatMbps(speed.mbps)} ${speedRatingLabel(speed.mbps)}`;
@@ -546,18 +588,54 @@ async function measureLatency(signal: AbortSignal) {
   return samples.reduce((sum, value) => sum + value, 0) / samples.length;
 }
 
-async function measureDownloadSpeed(signal: AbortSignal) {
-  const url = `https://speed.cloudflare.com/__down?bytes=${SPEED_TEST_DOWNLOAD_BYTES}&cache=${Date.now()}`;
-  const startedAt = performance.now();
-  const response = await fetch(url, { cache: "no-store", signal });
-  if (!response.ok) throw new Error("Speed test failed");
+async function measureDownloadSpeed(
+  signal: AbortSignal,
+  onProgress: (progress: { currentMbps: number; bytes: number; sampleCount: number }) => void,
+) {
+  const samples: number[] = [];
+  let totalBytes = 0;
+  const testStartedAt = performance.now();
 
-  const buffer = await response.arrayBuffer();
-  const elapsedSeconds = (performance.now() - startedAt) / 1_000;
+  while (performance.now() - testStartedAt < SPEED_TEST_MIN_DURATION_MS || samples.length < 3) {
+    const url = `https://speed.cloudflare.com/__down?bytes=${SPEED_TEST_DOWNLOAD_BYTES}&cache=${Date.now()}-${samples.length}`;
+    const sampleStartedAt = performance.now();
+    const response = await fetch(url, { cache: "no-store", signal });
+    if (!response.ok) throw new Error("Speed test failed");
+
+    const buffer = await response.arrayBuffer();
+    const elapsedSeconds = (performance.now() - sampleStartedAt) / 1_000;
+    const currentMbps =
+      elapsedSeconds <= 0 ? 0 : (buffer.byteLength * 8) / elapsedSeconds / 1_000_000;
+
+    samples.push(currentMbps);
+    totalBytes += buffer.byteLength;
+    onProgress({
+      currentMbps,
+      bytes: totalBytes,
+      sampleCount: samples.length,
+    });
+  }
+
   return {
-    bytes: buffer.byteLength,
-    mbps: elapsedSeconds <= 0 ? 0 : (buffer.byteLength * 8) / elapsedSeconds / 1_000_000,
+    bytes: totalBytes,
+    mbps: trimmedAverage(samples),
+    medianMbps: median(samples),
+    sampleCount: samples.length,
   };
+}
+
+function trimmedAverage(samples: number[]) {
+  if (!samples.length) return 0;
+  const sorted = [...samples].sort((left, right) => left - right);
+  const trimmed = sorted.length >= 5 ? sorted.slice(1, -1) : sorted;
+  return trimmed.reduce((sum, value) => sum + value, 0) / trimmed.length;
+}
+
+function median(samples: number[]) {
+  if (!samples.length) return 0;
+  const sorted = [...samples].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
 }
 
 async function measureUploadSpeed(signal: AbortSignal) {

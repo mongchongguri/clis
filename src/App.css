@@ -24,6 +24,13 @@
   text-rendering: optimizeLegibility;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -107,7 +114,9 @@ select:focus {
 }
 
 .app-shell {
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
+  overflow: auto;
   padding: 0 18px 58px;
 }
 
@@ -405,6 +414,9 @@ select:focus {
 }
 
 .app-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 500;
   height: 30px;
   margin: 0 -18px 10px;
   padding: 0 14px;
@@ -582,6 +594,10 @@ select:focus {
     opacity 0.18s ease;
 }
 
+.command-panel-body:not(.collapsed) {
+  overflow: visible;
+}
+
 .command-panel-body.collapsed {
   grid-template-rows: 0fr;
   opacity: 0;
@@ -590,12 +606,13 @@ select:focus {
 .command-panel-body-inner {
   min-height: 0;
   padding-top: 12px;
-  overflow: hidden;
+  overflow: visible;
   transition: padding-top 0.22s ease;
 }
 
 .command-panel-body.collapsed .command-panel-body-inner {
   padding-top: 0;
+  overflow: hidden;
 }
 
 .command-form-grid {
@@ -606,7 +623,11 @@ select:focus {
 }
 
 .command-field {
+  display: grid;
+  gap: 6px;
   min-width: 0;
+  font-weight: 500;
+  color: #57606a;
 }
 
 .command-field span {
@@ -639,6 +660,7 @@ label {
 
 .group-combobox {
   position: relative;
+  z-index: 20;
 }
 
 .group-combobox-control {
@@ -661,7 +683,7 @@ label {
 
 .group-combobox-menu {
   position: absolute;
-  z-index: 50;
+  z-index: 200;
   top: calc(100% + 6px);
   left: 0;
   width: max(100%, 180px);
@@ -909,12 +931,26 @@ label {
   min-width: 0;
 }
 
+.task-title-line {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
 .task-head h3 {
   font-size: 13px;
   font-weight: 600;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.task-error-indicator {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: #cf222e;
 }
 
 .task-head p {
@@ -1140,6 +1176,7 @@ label {
 }
 
 .log-panel {
+  --log-panel-height: 240px;
   position: fixed;
   left: 0;
   right: 0;
@@ -1154,14 +1191,34 @@ label {
   box-shadow: 0 -8px 24px rgba(27, 31, 36, 0.12);
 }
 
+.log-resize-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 7px;
+  cursor: ns-resize;
+  z-index: 2;
+}
+
+.resizing-log-panel,
+.resizing-log-panel * {
+  cursor: ns-resize !important;
+  user-select: none !important;
+}
+
 .log-panel-body {
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.22s ease;
 }
 
+.resizing-log-panel .log-panel-body {
+  transition: none;
+}
+
 .log-panel.open .log-panel-body {
-  max-height: 240px;
+  max-height: var(--log-panel-height);
 }
 
 .log-header {
@@ -1203,8 +1260,8 @@ label {
 pre {
   margin: 0;
   min-height: 0;
-  height: 240px;
-  max-height: 240px;
+  height: var(--log-panel-height);
+  max-height: var(--log-panel-height);
   overflow: auto;
   padding: 12px 14px;
   background: #0d1117;

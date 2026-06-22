@@ -46,14 +46,14 @@ export function CommandForm({
       <div className={collapsed ? "command-panel-body collapsed" : "command-panel-body"}>
         <div className="command-panel-body-inner">
           <div className="command-form-grid">
-            <label className="command-field group-field">
+            <div className="command-field group-field">
               <span>그룹</span>
               <GroupCombobox
                 groups={groups}
                 value={form.group}
                 onChange={(group) => onChange({ ...form, group })}
               />
-            </label>
+            </div>
 
             <label className="command-field name-field">
               <span>작업 이름</span>

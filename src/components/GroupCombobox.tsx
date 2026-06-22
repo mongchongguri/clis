@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 
 type GroupComboboxProps = {
   value: string;
@@ -8,36 +8,72 @@ type GroupComboboxProps = {
 };
 
 export function GroupCombobox({ value, groups, onChange }: GroupComboboxProps) {
+  const inputId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [showAllGroups, setShowAllGroups] = useState(false);
 
-  const filteredGroups = useMemo(() => {
-    const query = value.trim().toLowerCase();
-    const uniqueGroups = [...new Set(groups.map((group) => group.trim()).filter(Boolean))];
+  const uniqueGroups = useMemo(
+    () => [...new Set(groups.map((group) => group.trim()).filter(Boolean))],
+    [groups],
+  );
+
+  const visibleGroups = useMemo(() => {
+    const query = showAllGroups ? "" : value.trim().toLowerCase();
     if (!query) return uniqueGroups;
     return uniqueGroups.filter((group) => group.toLowerCase().includes(query));
-  }, [groups, value]);
+  }, [showAllGroups, uniqueGroups, value]);
 
   const showNewGroupHint =
-    value.trim() && !groups.some((group) => group.toLowerCase() === value.trim().toLowerCase());
+    value.trim() &&
+    !uniqueGroups.some((group) => group.toLowerCase() === value.trim().toLowerCase());
+
+  const openGroupList = (showAll = false) => {
+    setShowAllGroups(showAll);
+    setOpen(true);
+  };
+
+  const closeGroupList = () => {
+    setOpen(false);
+    setShowAllGroups(false);
+  };
 
   return (
-    <div className="group-combobox" onBlur={() => setOpen(false)}>
+    <div
+      className="group-combobox"
+      ref={rootRef}
+      onBlur={(event) => {
+        if (!rootRef.current?.contains(event.relatedTarget as Node | null)) {
+          closeGroupList();
+        }
+      }}
+    >
       <div className="group-combobox-control">
         <input
+          id={inputId}
           value={value}
           onChange={(event) => {
             onChange(event.target.value);
-            setOpen(true);
+            openGroupList(false);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => openGroupList(true)}
           placeholder="Frontend"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={`${inputId}-menu`}
+          aria-autocomplete="list"
         />
         <button
           className="group-combobox-toggle"
           type="button"
+          onMouseDown={(event) => event.preventDefault()}
           onClick={(event) => {
             event.preventDefault();
-            setOpen((current) => !current);
+            if (open && showAllGroups) {
+              closeGroupList();
+            } else {
+              openGroupList(true);
+            }
           }}
           title="그룹 목록"
         >
@@ -46,16 +82,18 @@ export function GroupCombobox({ value, groups, onChange }: GroupComboboxProps) {
       </div>
 
       {open ? (
-        <div className="group-combobox-menu">
-          {filteredGroups.map((group) => (
+        <div className="group-combobox-menu" id={`${inputId}-menu`} role="listbox">
+          {visibleGroups.map((group) => (
             <button
               className={group === value ? "group-combobox-item selected" : "group-combobox-item"}
               key={group}
+              role="option"
+              aria-selected={group === value}
               type="button"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
                 onChange(group);
-                setOpen(false);
+                closeGroupList();
               }}
             >
               {group}
@@ -66,12 +104,15 @@ export function GroupCombobox({ value, groups, onChange }: GroupComboboxProps) {
               className="group-combobox-item new"
               type="button"
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                onChange(value.trim());
+                closeGroupList();
+              }}
             >
               새 그룹 생성: {value.trim()}
             </button>
           ) : null}
-          {!filteredGroups.length && !showNewGroupHint ? (
+          {!visibleGroups.length && !showNewGroupHint ? (
             <div className="group-combobox-empty">그룹이 없습니다.</div>
           ) : null}
         </div>
