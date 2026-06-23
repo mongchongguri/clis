@@ -211,23 +211,8 @@ export default function App() {
   };
 
   const saveTask = async () => {
-    const validation = validateOnClient(form.cwd, form.command);
     if (!form.name.trim()) {
       setMessage("?묒뾽 ?대쫫???낅젰?댁빞 ?⑸땲??");
-      return;
-    }
-    if (!validation.ok) {
-      setMessage(validation.message);
-      return;
-    }
-
-    try {
-      await invoke<ValidationResult>("validate_command", {
-        cwd: form.cwd.trim(),
-        command: form.command.trim(),
-      });
-    } catch (error) {
-      setMessage(String(error));
       return;
     }
 
@@ -251,6 +236,7 @@ export default function App() {
     });
     setSelectedTaskId(task.id);
     setForm(emptyTaskForm);
+    setMessage("");
   };
 
   const editTask = (task: SavedTask) => {

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { AlertCircle, Pencil, Play, Square, SquareTerminal, Trash2 } from "lucide-react";
 import { formatTime } from "../lib/format";
+import { validateOnClient } from "../lib/commandValidation";
 import type { RuntimeStatus, SavedTask, TerminalAvailability, TerminalKind } from "../types";
 import { TerminalSelect } from "./TerminalSelect";
 
@@ -45,6 +46,13 @@ export function TaskCard({
     status?.last_error_output ||
     (typeof status?.exit_code === "number" ? `Exit code ${status.exit_code}` : "실행 오류");
   const effectiveTerminal = selectedTerminal || defaultTerminal;
+  const runValidation = validateOnClient(task.cwd, task.command);
+  const canRun = Boolean(task.command.trim()) && runValidation.ok;
+  const disabledRunMessage = !task.cwd.trim()
+    ? "실행 폴더가 없어 실행할 수 없습니다."
+    : !task.command.trim()
+      ? "명령어가 없어 실행할 수 없습니다."
+      : "허용되지 않거나 해석할 수 없는 명령어입니다.";
   const defaultTerminalLabel =
     terminals.find((terminal) => terminal.kind === defaultTerminal)?.label ?? "기본";
   const canOpenTerminal = terminals.some(
@@ -142,7 +150,8 @@ export function TaskCard({
         <button
           className={running ? "run-icon-button running" : "run-icon-button"}
         onClick={stopPropagation(running ? onStop : onStart)}
-        title={running ? "실행 중지" : "실행"}
+        disabled={!running && !canRun}
+        title={running ? "실행 중지" : canRun ? "실행" : disabledRunMessage}
       >
         {running ? (
           <span className="run-progress">

@@ -83,8 +83,8 @@ npm run build
 
 ```text
 src-tauri/target/release/clis.exe
-src-tauri/target/release/bundle/nsis/Clis_0.1.2_x64-setup.exe
-src-tauri/target/release/bundle/msi/Clis_0.1.2_x64_en-US.msi
+src-tauri/target/release/bundle/nsis/Clis_0.1.3_x64-setup.exe
+src-tauri/target/release/bundle/msi/Clis_0.1.3_x64_en-US.msi
 ```
 
 ## 설치 방법
@@ -94,13 +94,13 @@ src-tauri/target/release/bundle/msi/Clis_0.1.2_x64_en-US.msi
 NSIS 설치 파일:
 
 ```text
-src-tauri/target/release/bundle/nsis/Clis_0.1.2_x64-setup.exe
+src-tauri/target/release/bundle/nsis/Clis_0.1.3_x64-setup.exe
 ```
 
 MSI 설치 파일:
 
 ```text
-src-tauri/target/release/bundle/msi/Clis_0.1.2_x64_en-US.msi
+src-tauri/target/release/bundle/msi/Clis_0.1.3_x64_en-US.msi
 ```
 
 일반적으로 개인 PC에서 간단히 설치할 때는 NSIS 설치 파일을 사용하면 됩니다. MSI는 Windows 표준 설치 패키지라 회사 배포, 정책 배포, 관리형 설치에 더 적합합니다.

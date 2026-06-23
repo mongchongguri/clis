@@ -120,12 +120,31 @@ select:focus {
   padding: 0 18px 58px;
 }
 
+.app-shell,
+.group-combobox-menu,
+.terminal-dropdown-menu {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.app-shell::-webkit-scrollbar,
+.group-combobox-menu::-webkit-scrollbar,
+.terminal-dropdown-menu::-webkit-scrollbar {
+  display: none;
+}
+
 .screen-actions {
+  position: sticky;
+  top: 30px;
+  z-index: 450;
   height: 30px;
-  margin-bottom: 8px;
+  margin: 0 -18px 8px;
+  padding: 0 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: #f7f9fb;
+  border-bottom: 1px solid transparent;
 }
 
 .screen-brand {
@@ -1318,6 +1337,10 @@ pre {
 :root[data-theme="dark"] .metrics dd,
 :root[data-theme="dark"] .group-header h3 {
   color: #e6edf3;
+}
+
+:root[data-theme="dark"] .screen-actions {
+  background: #0d1117;
 }
 
 :root[data-theme="dark"] .screen-version {
