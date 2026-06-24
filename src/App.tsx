@@ -261,7 +261,7 @@ export default function App() {
     const selected = await open({
       directory: true,
       multiple: false,
-      title: "?묒뾽???ㅽ뻾???대뜑 ?좏깮",
+      title: "작업 실행 폴더 선택",
     });
     if (typeof selected === "string") {
       setForm((current) => ({ ...current, cwd: selected }));
@@ -270,7 +270,7 @@ export default function App() {
 
   const saveTask = async () => {
     if (!form.name.trim()) {
-      setMessage("?묒뾽 ?대쫫???낅젰?댁빞 ?⑸땲??");
+      setMessage("작업 이름을 입력해야 합니다.");
       return;
     }
 
@@ -506,7 +506,9 @@ export default function App() {
               ) : (
                 <DownloadCloud size={11} />
               )}
-              {updateState.installing ? formatUpdateProgress(updateState) : "UPDATE"}
+              {updateState.installing
+                ? formatUpdateProgress(updateState)
+                : `UPDATE ${updateState.available.version}`}
             </button>
           ) : null}
         </div>
