@@ -15,6 +15,8 @@
 }
 
 :root {
+  --titlebar-height: 30px;
+  --screen-header-height: 40px;
   color: #1f2937;
   background: #f7f9fb;
   font-family:
@@ -117,7 +119,7 @@ select:focus {
   height: 100vh;
   min-height: 0;
   overflow: auto;
-  padding: 0 18px 58px;
+  padding: calc(var(--titlebar-height) + var(--screen-header-height) + 8px) 18px 58px;
 }
 
 .app-shell,
@@ -134,15 +136,20 @@ select:focus {
 }
 
 .screen-actions {
-  position: sticky;
-  top: 30px;
+  position: fixed;
+  top: var(--titlebar-height);
+  left: 0;
+  right: 0;
   z-index: 450;
-  height: 30px;
-  margin: 0 -18px 8px;
+  height: var(--screen-header-height);
+  min-height: var(--screen-header-height);
+  max-height: var(--screen-header-height);
+  margin: 0;
   padding: 0 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex: 0 0 var(--screen-header-height);
   background: #f7f9fb;
   border-bottom: 1px solid transparent;
 }
@@ -150,6 +157,7 @@ select:focus {
 .screen-brand {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 7px;
   color: #24292f;
   font-size: 16px;
@@ -196,12 +204,14 @@ select:focus {
 .screen-right-tools {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 16px;
 }
 
 .system-metrics {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 7px;
   color: #57606a;
   font-size: 12px;
@@ -210,6 +220,8 @@ select:focus {
 }
 
 .metric-pill {
+  height: 22px;
+  flex: 0 0 auto;
   min-width: 62px;
   padding: 3px 7px;
   border: 1px solid #d0d7de;
@@ -456,11 +468,15 @@ select:focus {
 }
 
 .app-toolbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 500;
-  height: 30px;
-  margin: 0 -18px 10px;
+  height: var(--titlebar-height);
+  min-height: var(--titlebar-height);
+  max-height: var(--titlebar-height);
+  margin: 0;
   padding: 0 14px;
   display: flex;
   align-items: center;
@@ -870,11 +886,67 @@ label {
 }
 
 .task-group {
+  position: relative;
   display: grid;
   gap: 0;
   border: 1px solid #d0d7de;
   border-radius: 6px;
   overflow: visible;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+.task-group.dragging {
+  opacity: 0.58;
+}
+
+.task-group.drag-over {
+  border-color: #d0d7de;
+  box-shadow: none;
+}
+
+.task-group.drag-over::before {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  z-index: 5;
+  height: 2px;
+  border-radius: 999px;
+  background: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14);
+  content: "";
+  pointer-events: none;
+}
+
+.task-group.drag-over::after {
+  position: absolute;
+  z-index: 6;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f97316;
+  content: "";
+  pointer-events: none;
+}
+
+.task-group.drag-over-before::before {
+  top: -8px;
+}
+
+.task-group.drag-over-before::after {
+  top: -11px;
+}
+
+.task-group.drag-over-after::before {
+  bottom: -8px;
+}
+
+.task-group.drag-over-after::after {
+  bottom: -11px;
 }
 
 .group-header {
@@ -886,6 +958,19 @@ label {
   padding: 0 12px;
   border-bottom: 1px solid #d0d7de;
   background: #f6f8fa;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.task-group.dragging .group-header {
+  cursor: grabbing;
+}
+
+.group-header input,
+.group-header button,
+.group-header select {
+  cursor: auto;
 }
 
 .group-title-area {

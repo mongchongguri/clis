@@ -4,8 +4,8 @@ export function AppToolbar() {
   const appWindow = getCurrentWindow();
   const startDragging = async (event: React.MouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
+    if (event.button !== 0) return;
     if (target.closest("button")) return;
-    if (event.detail > 1) return;
     await appWindow.startDragging();
   };
   const toggleMaximize = async (event: React.MouseEvent<HTMLElement>) => {
@@ -21,8 +21,8 @@ export function AppToolbar() {
       onDoubleClick={toggleMaximize}
       onMouseDown={startDragging}
     >
-      <div className="window-right">
-        <div className="window-controls">
+      <div className="window-right" data-tauri-drag-region>
+        <div className="window-controls" data-tauri-drag-region>
           <button
             className="window-control minimize"
             onClick={() => appWindow.minimize()}

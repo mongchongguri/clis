@@ -84,15 +84,15 @@ npm run build
 
 ```text
 src-tauri/target/release/clis.exe
-src-tauri/target/release/bundle/nsis/Clis_1.0.5_x64-setup.exe
-src-tauri/target/release/bundle/msi/Clis_1.0.5_x64_en-US.msi
+src-tauri/target/release/bundle/nsis/Clis_1.0.6_x64-setup.exe
+src-tauri/target/release/bundle/msi/Clis_1.0.6_x64_en-US.msi
 ```
 
 자동 업데이트 서명 파일도 같이 생성됩니다.
 
 ```text
-src-tauri/target/release/bundle/nsis/Clis_1.0.5_x64-setup.exe.sig
-src-tauri/target/release/bundle/msi/Clis_1.0.5_x64_en-US.msi.sig
+src-tauri/target/release/bundle/nsis/Clis_1.0.6_x64-setup.exe.sig
+src-tauri/target/release/bundle/msi/Clis_1.0.6_x64_en-US.msi.sig
 ```
 
 ## 설치 방법
@@ -102,13 +102,13 @@ src-tauri/target/release/bundle/msi/Clis_1.0.5_x64_en-US.msi.sig
 NSIS 설치 파일:
 
 ```text
-src-tauri/target/release/bundle/nsis/Clis_1.0.5_x64-setup.exe
+src-tauri/target/release/bundle/nsis/Clis_1.0.6_x64-setup.exe
 ```
 
 MSI 설치 파일:
 
 ```text
-src-tauri/target/release/bundle/msi/Clis_1.0.5_x64_en-US.msi
+src-tauri/target/release/bundle/msi/Clis_1.0.6_x64_en-US.msi
 ```
 
 일반적으로 개인 PC에서 간단히 설치할 때는 NSIS 설치 파일을 사용하면 됩니다. MSI는 Windows 표준 설치 패키지라 회사 배포, 정책 배포, 관리형 설치에 더 적합합니다.
@@ -181,7 +181,7 @@ https://github.com/mongchongguri/clis/releases/latest/download/latest.json
 3. 버전 태그를 생성하고 push합니다.
 
 ```powershell
-git tag v1.0.5
+git tag v1.0.6
 git push origin master --tags
 ```
 

@@ -27,6 +27,9 @@ use windows_sys::Win32::{
     },
 };
 
+#[cfg(windows)]
+const APP_USER_MODEL_ID: &str = "com.local.clis";
+
 const MAX_LOG_LINES: usize = 800;
 const MAX_COMMAND_LENGTH: usize = 500;
 const MAX_TOKEN_COUNT: usize = 64;
@@ -1010,6 +1013,8 @@ fn now_epoch() -> u64 {
 }
 
 pub fn run() {
+    set_windows_app_user_model_id();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
@@ -1029,6 +1034,19 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[cfg(windows)]
+fn set_windows_app_user_model_id() {
+    use windows_sys::{core::PCWSTR, Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID};
+
+    let wide: Vec<u16> = APP_USER_MODEL_ID.encode_utf16().chain(std::iter::once(0)).collect();
+    unsafe {
+        let _ = SetCurrentProcessExplicitAppUserModelID(wide.as_ptr() as PCWSTR);
+    }
+}
+
+#[cfg(not(windows))]
+fn set_windows_app_user_model_id() {}
 
 #[cfg(test)]
 mod tests {

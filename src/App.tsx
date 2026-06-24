@@ -12,6 +12,7 @@ import { CommandForm } from "./components/CommandForm";
 import { LogPanel } from "./components/LogPanel";
 import { TaskList } from "./components/TaskList";
 import { validateOnClient } from "./lib/commandValidation";
+import { loadGroupOrder, persistGroupOrder } from "./lib/groupOrderSettings";
 import { DEFAULT_GROUP, emptyTaskForm, loadTasks, persistTasks } from "./lib/taskStorage";
 import {
   FALLBACK_TERMINAL,
@@ -57,6 +58,7 @@ type UpdateState = {
 
 export default function App() {
   const [tasks, setTasks] = useState<SavedTask[]>([]);
+  const [groupOrder, setGroupOrder] = useState<string[]>([]);
   const [form, setForm] = useState<SavedTask>(emptyTaskForm);
   const [selectedTaskId, setSelectedTaskId] = useState<string>("");
   const [statuses, setStatuses] = useState<Record<string, RuntimeStatus>>({});
@@ -89,8 +91,10 @@ export default function App() {
   const groups = useMemo(() => {
     const names = new Set(tasks.map((task) => task.group.trim()).filter(Boolean));
     names.add(DEFAULT_GROUP);
-    return [...names].sort((left, right) => left.localeCompare(right, "ko"));
-  }, [tasks]);
+    const existing = groupOrder.filter((group) => names.has(group));
+    const missing = [...names].filter((group) => !existing.includes(group));
+    return [...existing, ...missing.sort((left, right) => left.localeCompare(right, "ko"))];
+  }, [groupOrder, tasks]);
 
   useEffect(() => {
     if (!selectedTaskId && tasks[0]) {
@@ -101,10 +105,11 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([loadTasks(), loadDefaultTerminal(), loadTaskTerminals(), loadTheme()])
-      .then(([storedTasks, storedDefaultTerminal, storedTaskTerminals, storedTheme]) => {
+    Promise.all([loadTasks(), loadGroupOrder(), loadDefaultTerminal(), loadTaskTerminals(), loadTheme()])
+      .then(([storedTasks, storedGroupOrder, storedDefaultTerminal, storedTaskTerminals, storedTheme]) => {
         if (cancelled) return;
         setTasks(storedTasks);
+        setGroupOrder(storedGroupOrder);
         setDefaultTerminal(storedDefaultTerminal);
         setTaskTerminals(storedTaskTerminals);
         setTheme(storedTheme);
@@ -125,6 +130,11 @@ export default function App() {
     if (!storageReady) return;
     persistTasks(tasks).catch((error) => setMessage(String(error)));
   }, [storageReady, tasks]);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    persistGroupOrder(groups).catch((error) => setMessage(String(error)));
+  }, [groups, storageReady]);
 
   useEffect(() => {
     if (!storageReady) return;
@@ -370,6 +380,26 @@ export default function App() {
     setForm((current) =>
       current.group === fromGroup ? { ...current, group: nextGroup } : current,
     );
+    setGroupOrder((current) =>
+      current.map((group) => (group === fromGroup ? nextGroup : group)),
+    );
+  };
+
+  const reorderGroup = (fromGroup: string, toGroup: string, placement: "before" | "after") => {
+    if (fromGroup === toGroup) return;
+    setGroupOrder(() => {
+      const orderedGroups = groups.filter((group) => group !== fromGroup);
+      const targetIndex = orderedGroups.indexOf(toGroup);
+      if (targetIndex < 0) return groups;
+
+      const insertIndex = placement === "after" ? targetIndex + 1 : targetIndex;
+
+      return [
+        ...orderedGroups.slice(0, insertIndex),
+        fromGroup,
+        ...orderedGroups.slice(insertIndex),
+      ];
+    });
   };
 
   const checkInternetSpeed = async () => {
@@ -591,6 +621,7 @@ export default function App() {
           statuses={statuses}
           terminals={terminals}
           defaultTerminal={defaultTerminal}
+          groupOrder={groups}
           taskTerminals={taskTerminals}
           onDefaultTerminalChange={setDefaultTerminal}
           onTaskTerminalChange={changeTaskTerminal}
@@ -599,6 +630,7 @@ export default function App() {
           onStop={stopTask}
           onOpenTerminal={openTaskTerminal}
           onRenameGroup={renameGroup}
+          onReorderGroup={reorderGroup}
           onEdit={editTask}
           onRemove={removeTask}
         />
