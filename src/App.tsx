@@ -4,6 +4,9 @@ import { Gauge, LoaderCircle } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
+import { DownloadCloud } from "lucide-react";
 import { AppToolbar } from "./components/AppToolbar";
 import { CommandForm } from "./components/CommandForm";
 import { LogPanel } from "./components/LogPanel";
@@ -43,6 +46,15 @@ type SpeedTestState = {
   error?: string;
 };
 
+type UpdateState = {
+  checking: boolean;
+  installing: boolean;
+  available?: Update;
+  downloadedBytes: number;
+  contentLength?: number;
+  error?: string;
+};
+
 export default function App() {
   const [tasks, setTasks] = useState<SavedTask[]>([]);
   const [form, setForm] = useState<SavedTask>(emptyTaskForm);
@@ -59,6 +71,11 @@ export default function App() {
   const [commandFormCollapsed, setCommandFormCollapsed] = useState(false);
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null);
   const [speedTest, setSpeedTest] = useState<SpeedTestState>({ checking: false });
+  const [updateState, setUpdateState] = useState<UpdateState>({
+    checking: false,
+    installing: false,
+    downloadedBytes: 0,
+  });
 
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? tasks[0];
   const runningTaskCount = useMemo(
@@ -124,6 +141,37 @@ export default function App() {
     if (!storageReady) return;
     persistTheme(theme).catch((error) => setMessage(String(error)));
   }, [storageReady, theme]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkForUpdate = async () => {
+      setUpdateState((current) => ({ ...current, checking: true, error: undefined }));
+      try {
+        const update = await check({ timeout: 10_000 });
+        if (cancelled) return;
+        setUpdateState((current) => ({
+          ...current,
+          checking: false,
+          available: update ?? undefined,
+        }));
+      } catch (error) {
+        if (cancelled) return;
+        setUpdateState((current) => ({
+          ...current,
+          checking: false,
+          error: String(error),
+        }));
+      }
+    };
+
+    checkForUpdate();
+    const timer = window.setInterval(checkForUpdate, 30 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     const unlisteners: UnlistenFn[] = [];
@@ -363,6 +411,47 @@ export default function App() {
     }
   };
 
+  const installUpdate = async () => {
+    const update = updateState.available;
+    if (!update || updateState.installing) return;
+
+    setUpdateState((current) => ({
+      ...current,
+      installing: true,
+      downloadedBytes: 0,
+      contentLength: undefined,
+      error: undefined,
+    }));
+
+    try {
+      await update.downloadAndInstall((event: DownloadEvent) => {
+        setUpdateState((current) => {
+          if (event.event === "Started") {
+            return {
+              ...current,
+              contentLength: event.data.contentLength,
+              downloadedBytes: 0,
+            };
+          }
+          if (event.event === "Progress") {
+            return {
+              ...current,
+              downloadedBytes: current.downloadedBytes + event.data.chunkLength,
+            };
+          }
+          return current;
+        });
+      });
+      await relaunch();
+    } catch (error) {
+      setUpdateState((current) => ({
+        ...current,
+        installing: false,
+        error: String(error),
+      }));
+    }
+  };
+
   const visibleLogs = selectedTask ? logs.filter((entry) => entry.task_id === selectedTask.id) : [];
 
   return (
@@ -374,6 +463,22 @@ export default function App() {
           <img className="screen-brand-icon" src={appIcon} alt="" aria-hidden="true" />
           <span>Clis</span>
           <span className="screen-version">v{packageJson.version}</span>
+          {updateState.available ? (
+            <button
+              className="update-badge"
+              type="button"
+              disabled={updateState.installing}
+              title={updateState.installing ? "업데이트 설치 중" : `v${updateState.available.version} 업데이트 설치`}
+              onClick={installUpdate}
+            >
+              {updateState.installing ? (
+                <LoaderCircle className="metric-spin" size={11} />
+              ) : (
+                <DownloadCloud size={11} />
+              )}
+              {updateState.installing ? formatUpdateProgress(updateState) : "UPDATE"}
+            </button>
+          ) : null}
         </div>
         <div className="screen-right-tools">
           <div className="system-metrics">
@@ -507,6 +612,12 @@ export default function App() {
       />
     </main>
   );
+}
+
+function formatUpdateProgress(update: UpdateState) {
+  if (!update.contentLength) return "UPDATING";
+  const percent = Math.min(99, Math.floor((update.downloadedBytes / update.contentLength) * 100));
+  return `${percent}%`;
 }
 
 function formatPercent(value?: number) {

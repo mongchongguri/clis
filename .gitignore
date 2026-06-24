@@ -10,5 +10,7 @@ src-tauri/target-test*/
 *.log
 *.tmp
 
+.tauri/
+
 .DS_Store
 Thumbs.db

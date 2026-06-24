@@ -170,6 +170,29 @@ select:focus {
   font-weight: 400;
 }
 
+.update-badge {
+  height: 20px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff4e8;
+  color: #c2410c;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  gap: 4px;
+}
+
+.update-badge:hover:not(:disabled) {
+  border: 0;
+  background: #fed7aa;
+  color: #9a3412;
+}
+
+.update-badge:disabled {
+  opacity: 0.75;
+}
+
 .screen-right-tools {
   display: inline-flex;
   align-items: center;
@@ -1345,6 +1368,16 @@ pre {
 
 :root[data-theme="dark"] .screen-version {
   color: #6e7681;
+}
+
+:root[data-theme="dark"] .update-badge {
+  background: #43250f;
+  color: #fdba74;
+}
+
+:root[data-theme="dark"] .update-badge:hover:not(:disabled) {
+  background: #7c2d12;
+  color: #ffedd5;
 }
 
 :root[data-theme="dark"] .system-metrics {
