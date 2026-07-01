@@ -7,7 +7,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
 import { DownloadCloud } from "lucide-react";
-import { AppToolbar } from "./components/AppToolbar";
+import { WindowToolbar } from "./components/WindowToolbar";
 import { CommandForm } from "./components/CommandForm";
 import { LogPanel } from "./components/LogPanel";
 import { TaskList } from "./components/TaskList";
@@ -486,7 +486,7 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <AppToolbar />
+      <WindowToolbar />
 
       <div className="screen-actions">
         <div className="screen-brand">
